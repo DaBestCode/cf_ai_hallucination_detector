@@ -1,8 +1,6 @@
-import { Env } from ".";
-
 // worker/src/DurableChat.ts
-// NOTE: I have simplified the ChatMessage import for this snippet since Env is imported from "."
-// For the actual file, ensure necessary types are defined or correctly imported.
+
+import { Env } from "./index"; 
 
 interface ChatMessage {
     role: 'user' | 'assistant' | 'system';
@@ -11,22 +9,25 @@ interface ChatMessage {
 
 export class DurableChat implements DurableObject {
   private state: DurableObjectState;
-  private history: ChatMessage[];
+  // Initialize history to null/undefined, and let fetch() handle loading.
+  private history: ChatMessage[] | undefined; 
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
-    this.history = [];
-    this.state.blockConcurrencyWhile(async () => {
-      this.history = (await this.state.storage.get('history')) || [];
-    });
+    this.history = undefined; // Initialize history without async operations
   }
 
   // THIS IS THE CRITICAL LOGIC FOR RPC COMMUNICATION
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
+    // 🛑 CRITICAL FIX: Ensure history is loaded before any operation
+    if (this.history === undefined) {
+        this.history = (await this.state.storage.get('history')) || [];
+    }
+
     // 1. Endpoint for GET History
-    if (request.method === 'GET') {
+    if (url.pathname === '/chat' && request.method === 'GET') { 
         return new Response(JSON.stringify(this.history), {
             headers: { 'Content-Type': 'application/json' },
             status: 200
@@ -34,14 +35,7 @@ export class DurableChat implements DurableObject {
     }
 
     // 2. Endpoint for POST History (Update/Save)
-    if (request.method === 'POST') {
-        if (url.pathname === '/reset') {
-            this.history = [];
-            await this.state.storage.delete('history');
-            return new Response('History reset for session.', { status: 200 });
-        }
-        
-        // This is the /chat logic where the Worker sends the new messages
+    if (url.pathname === '/chat' && request.method === 'POST') {
         try {
             const { message, assistantAnswer } = await request.json() as { 
                 message: string, 
@@ -61,12 +55,18 @@ export class DurableChat implements DurableObject {
             
             return new Response('Messages added successfully.', { status: 200 });
         } catch (e) {
-            // Log parsing failure if the POST body is malformed
             console.error("DO POST body parsing failed:", e);
             return new Response(`Error processing history update: ${e}`, { status: 400 });
         }
     }
 
-    return new Response('Method Not Allowed', { status: 405 });
+    // 3. Endpoint for POST Reset History
+    if (url.pathname === '/reset' && request.method === 'POST') {
+        this.history = [];
+        await this.state.storage.delete('history');
+        return new Response('History reset for session.', { status: 200 });
+    }
+
+    return new Response('DO Endpoint Not Found or Method Not Allowed', { status: 404 });
   }
 }
