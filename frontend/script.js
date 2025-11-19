@@ -9,8 +9,8 @@ function getUserId() {
     return userId;
 }
 const WORKER_BASE_URL = 'http://localhost:8787';
-const API_ENDPOINT = WORKER_BASE_URL +'/chat'; // The Worker's route
-const RESET_ENDPOINT = WORKER_BASE_URL +'/reset'; // The Worker's reset route
+const API_ENDPOINT = '/chat'; // The Worker's route
+const RESET_ENDPOINT = '/reset'; // The Worker's reset route
 const chatWindow = document.getElementById('chat-window');
 const userInput = document.getElementById('user-input');
 const sendButton = document.getElementById('send-button');

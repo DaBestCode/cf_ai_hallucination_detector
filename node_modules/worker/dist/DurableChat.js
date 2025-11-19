@@ -1,20 +1,23 @@
-// worker/src/DurableChat.ts
 export class DurableChat {
     state;
-    // Initialize history to null/undefined, and let fetch() handle loading.
     history;
     constructor(state, env) {
         this.state = state;
-        this.history = undefined; // Initialize history without async operations
+        this.history = undefined;
     }
-    // THIS IS THE CRITICAL LOGIC FOR RPC COMMUNICATION
     async fetch(request) {
         const url = new URL(request.url);
-        // 🛑 CRITICAL FIX: Ensure history is loaded before any operation
+        // 🛑 CRITICAL FIX: Ensure history is loaded and IS an array.
         if (this.history === undefined) {
-            this.history = (await this.state.storage.get('history')) || [];
+            console.log("[DO] Loading history from storage...");
+            // Retrieve and force initialization to an empty array if null/undefined
+            const storedHistory = await this.state.storage.get('history');
+            this.history = Array.isArray(storedHistory) ? storedHistory : [];
+            console.log(`[DO] History loaded. Initial size: ${this.history.length}`);
         }
-        // 1. Endpoint for GET History
+        // ... (rest of the fetch handler is now safe)
+        // All subsequent .push() calls are now guaranteed to work.
+        // 1. Endpoint for GET History (Used by /chat route)
         if (url.pathname === '/chat' && request.method === 'GET') {
             return new Response(JSON.stringify(this.history), {
                 headers: { 'Content-Type': 'application/json' },
@@ -25,10 +28,8 @@ export class DurableChat {
         if (url.pathname === '/chat' && request.method === 'POST') {
             try {
                 const { message, assistantAnswer } = await request.json();
-                // Add messages
                 this.history.push({ role: 'user', content: message });
                 this.history.push({ role: 'assistant', content: assistantAnswer });
-                // Truncate and save
                 const MAX_HISTORY = 10;
                 if (this.history.length > MAX_HISTORY) {
                     this.history = this.history.slice(this.history.length - MAX_HISTORY);
@@ -37,7 +38,7 @@ export class DurableChat {
                 return new Response('Messages added successfully.', { status: 200 });
             }
             catch (e) {
-                console.error("DO POST body parsing failed:", e);
+                console.error("[DO] POST body parsing failed:", e);
                 return new Response(`Error processing history update: ${e}`, { status: 400 });
             }
         }
