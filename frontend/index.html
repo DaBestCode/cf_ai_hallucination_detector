@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudflare AI Hallucination Detector</title>
+    <style>
+        /* Basic CSS for a clean chat look */
+        body { font-family: 'Arial', sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { background-color: #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); width: 100%; max-width: 700px; display: flex; flex-direction: column; height: 90vh; }
+        header { padding: 15px; border-bottom: 1px solid #eee; background-color: #0b507f; color: white; text-align: center; border-radius: 8px 8px 0 0; }
+        #chat-window { flex-grow: 1; padding: 20px; overflow-y: auto; background-color: #fbfbfb; }
+        .message { margin-bottom: 15px; max-width: 80%; padding: 10px 15px; border-radius: 18px; line-height: 1.5; }
+        .user { background-color: #dcf8c6; margin-left: auto; text-align: right; border-bottom-right-radius: 2px; }
+        .assistant { background-color: #e5e5ea; margin-right: auto; text-align: left; border-bottom-left-radius: 2px; }
+        .critique-box { background-color: #fff3cd; color: #664d03; border: 1px solid #ffecb5; padding: 10px; border-radius: 10px; margin-top: 10px; font-size: 0.9em; white-space: pre-wrap; }
+        #input-area { padding: 15px; border-top: 1px solid #eee; display: flex; }
+        #user-input { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 20px; margin-right: 10px; font-size: 16px; }
+        button { padding: 10px 20px; background-color: #0b507f; color: white; border: none; border-radius: 20px; cursor: pointer; transition: background-color 0.3s; }
+        button:hover { background-color: #083c5e; }
+        .button-group { display: flex; gap: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h2>CF AI Hallucination Detector 🕵️</h2>
+            <p>Powered by Cloudflare Workers AI and Durable Objects.</p>
+        </header>
+        <div id="chat-window">
+            <div class="message assistant">Hello! Ask me anything. After my answer, I'll run a self-critique to check for hallucinations. Your chat history is saved using Durable Objects!</div>
+        </div>
+        <div id="input-area">
+            <input type="text" id="user-input" placeholder="Type your message here...">
+            <div class="button-group">
+                <button id="send-button">Send</button>
+                <button id="reset-button" style="background-color: #dc3545;">Reset</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

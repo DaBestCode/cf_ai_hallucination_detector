@@ -1,0 +1,21 @@
+{
+  "name": "cf-ai-hallucination-detector",
+  "version": "1.0.0",
+  "private": true,
+  "description": "An AI-powered chat application for the Cloudflare assignment.",
+  "scripts": {
+    "start": "npm run start --workspace worker",
+    "deploy": "npm run deploy --workspace worker"
+  },
+  "keywords": [
+    "cloudflare",
+    "ai",
+    "workers",
+    "durable-objects"
+  ],
+  "author": "",
+  "license": "ISC",
+  "workspaces": [
+    "worker"
+  ]
+}

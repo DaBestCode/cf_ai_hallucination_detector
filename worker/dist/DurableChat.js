@@ -1,0 +1,39 @@
+// DurableChat.ts
+export class DurableChat {
+    state;
+    history;
+    constructor(state, env) {
+        this.state = state;
+        this.history = [];
+        this.state.blockConcurrencyWhile(async () => {
+            this.history = (await this.state.storage.get('history')) || [];
+        });
+    }
+    // Method to get the current history
+    async getHistory() {
+        return this.history;
+    }
+    // Method to add a new message pair (user and assistant)
+    async addMessage(message) {
+        this.history.push(message);
+        // Only store the last N messages to keep the context size manageable
+        const MAX_HISTORY = 10;
+        if (this.history.length > MAX_HISTORY) {
+            this.history = this.history.slice(this.history.length - MAX_HISTORY);
+        }
+        // Write history back to DO storage
+        await this.state.storage.put('history', this.history);
+    }
+    // Handle fetch requests (e.g., reset history)
+    async fetch(request) {
+        const url = new URL(request.url);
+        if (url.pathname === '/reset') {
+            this.history = [];
+            await this.state.storage.delete('history');
+            return new Response('History reset for session.', { status: 200 });
+        }
+        // For general DOs, we might have more complex logic, 
+        // but for chat state, we just expose the `getHistory` and `addMessage` via the Worker.
+        return new Response('Durable Object operation successful.', { status: 200 });
+    }
+}
