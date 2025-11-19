@@ -1,9 +1,17 @@
 import { Env } from ".";
 
-// DurableChat.ts
+// worker/src/DurableChat.ts
+// NOTE: I have simplified the ChatMessage import for this snippet since Env is imported from "."
+// For the actual file, ensure necessary types are defined or correctly imported.
+
+interface ChatMessage {
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+}
+
 export class DurableChat implements DurableObject {
   private state: DurableObjectState;
-  private history: { role: 'user' | 'assistant'; content: string }[];
+  private history: ChatMessage[];
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
@@ -13,35 +21,52 @@ export class DurableChat implements DurableObject {
     });
   }
 
-  // Method to get the current history
-  async getHistory() {
-    return this.history;
-  }
-
-  // Method to add a new message pair (user and assistant)
-  async addMessage(message: { role: 'user' | 'assistant'; content: string }) {
-    this.history.push(message);
-    // Only store the last N messages to keep the context size manageable
-    const MAX_HISTORY = 10;
-    if (this.history.length > MAX_HISTORY) {
-        this.history = this.history.slice(this.history.length - MAX_HISTORY);
-    }
-    
-    // Write history back to DO storage
-    await this.state.storage.put('history', this.history);
-  }
-
-  // Handle fetch requests (e.g., reset history)
+  // THIS IS THE CRITICAL LOGIC FOR RPC COMMUNICATION
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === '/reset') {
-        this.history = [];
-        await this.state.storage.delete('history');
-        return new Response('History reset for session.', { status: 200 });
+
+    // 1. Endpoint for GET History
+    if (request.method === 'GET') {
+        return new Response(JSON.stringify(this.history), {
+            headers: { 'Content-Type': 'application/json' },
+            status: 200
+        });
     }
-    
-    // For general DOs, we might have more complex logic, 
-    // but for chat state, we just expose the `getHistory` and `addMessage` via the Worker.
-    return new Response('Durable Object operation successful.', { status: 200 });
+
+    // 2. Endpoint for POST History (Update/Save)
+    if (request.method === 'POST') {
+        if (url.pathname === '/reset') {
+            this.history = [];
+            await this.state.storage.delete('history');
+            return new Response('History reset for session.', { status: 200 });
+        }
+        
+        // This is the /chat logic where the Worker sends the new messages
+        try {
+            const { message, assistantAnswer } = await request.json() as { 
+                message: string, 
+                assistantAnswer: string 
+            };
+            
+            // Add messages
+            this.history.push({ role: 'user', content: message });
+            this.history.push({ role: 'assistant', content: assistantAnswer });
+
+            // Truncate and save
+            const MAX_HISTORY = 10;
+            if (this.history.length > MAX_HISTORY) {
+                this.history = this.history.slice(this.history.length - MAX_HISTORY);
+            }
+            await this.state.storage.put('history', this.history);
+            
+            return new Response('Messages added successfully.', { status: 200 });
+        } catch (e) {
+            // Log parsing failure if the POST body is malformed
+            console.error("DO POST body parsing failed:", e);
+            return new Response(`Error processing history update: ${e}`, { status: 400 });
+        }
+    }
+
+    return new Response('Method Not Allowed', { status: 405 });
   }
 }

@@ -1,0 +1,4 @@
+# This file tells wrangler pages deploy to specifically look at the current directory.
+name = "cf-ai-hallucination-detector-ui"
+# The directory containing the assets is the current directory (where this file resides)
+pages_build_output_dir = "."
